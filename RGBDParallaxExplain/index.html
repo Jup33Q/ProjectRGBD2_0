@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project RGBD</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            backdrop-filter: blur(5px);
+            z-index: 10;
+        }
+        
+        h1 {
+            font-size: 64px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, rgba(0, 255, 255, 0.8), rgba(0, 150, 255, 0.8));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 
+                0 0 10px rgba(0, 255, 255, 0.8),
+                0 0 20px rgba(0, 255, 255, 0.6),
+                0 0 30px rgba(0, 255, 255, 0.4),
+                0 0 40px rgba(0, 255, 255, 0.2);
+            background-color: rgba(0, 255, 255, 0.1);
+            padding: 20px 40px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 0 20px rgba(0, 255, 255, 0.3),
+                inset 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+        
+        h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, rgba(0, 200, 200, 0.7), rgba(0, 120, 200, 0.7));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 
+                0 0 8px rgba(0, 200, 200, 0.6),
+                0 0 16px rgba(0, 200, 200, 0.4),
+                0 0 24px rgba(0, 200, 200, 0.2);
+            background-color: rgba(0, 200, 200, 0.08);
+            padding: 15px 30px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 200, 200, 0.2);
+            backdrop-filter: blur(8px);
+            box-shadow: 
+                0 0 15px rgba(0, 200, 200, 0.2),
+                inset 0 0 15px rgba(0, 200, 200, 0.08);
+        }
+        
+        .cyber-button {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 0 20px rgba(0, 255, 255, 0.3),
+                inset 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+        
+        .cyber-button:hover {
+            background: rgba(0, 255, 255, 0.3);
+            box-shadow: 
+                0 0 30px rgba(0, 255, 255, 0.6),
+                inset 0 0 25px rgba(0, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .cyber-button::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(0, 255, 255, 0.3),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% {
+                transform: translateX(-100%) rotate(45deg);
+            }
+            100% {
+                transform: translateX(100%) rotate(45deg);
+            }
+        }
+        
+        .button-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .content-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+            transition: all 0.5s ease;
+            transform: translateY(0);
+            opacity: 0;
+            z-index: 5;
+            display: flex;
+        }
+        
+        .sidebar {
+            width: 200px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            border-right: 1px solid rgba(0, 255, 255, 0.3);
+            padding: 20px 0;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        .sidebar-tab {
+            display: block;
+            padding: 15px 20px;
+            color: rgba(0, 255, 255, 0.7);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-tab:hover {
+            color: rgba(0, 255, 255, 1);
+            background: rgba(0, 255, 255, 0.1);
+            border-left: 3px solid rgba(0, 255, 255, 0.5);
+        }
+        
+        .sidebar-tab.active {
+            color: rgba(0, 255, 255, 1);
+            background: rgba(0, 255, 255, 0.15);
+            border-left: 3px solid rgba(0, 255, 255, 0.8);
+        }
+        
+        .content-area {
+            flex: 1;
+            height: 100%;
+            padding: 50px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        .content-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .content-area::-webkit-scrollbar-track {
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        .content-area::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.5);
+            border-radius: 4px;
+        }
+        
+        .content-area::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 255, 0.8);
+        }
+        
+        .markdown-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        
+        .markdown-content h1 {
+            font-size: 36px;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, rgba(0, 255, 255, 0.8), rgba(0, 150, 255, 0.8));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .markdown-content h2 {
+            font-size: 28px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, rgba(0, 200, 200, 0.7), rgba(0, 120, 200, 0.7));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .markdown-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        
+        .markdown-content ul {
+            margin-left: 20px;
+        }
+        
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(0, 255, 255, 0.8);
+            font-size: 14px;
+            text-align: center;
+            animation: pulse 2s infinite;
+            transition: opacity 0.5s ease;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+                transform: translateX(-50%) translateY(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(10px);
+            }
+            100% {
+                opacity: 0.5;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="webglCanvas"></canvas>
+    <div class="overlay">
+        <div style="text-align: center; padding: 100px 20px;">
+            <div style="display: inline-block; background: rgba(0, 255, 255, 0.1); border: 2px solid rgba(0, 255, 255, 0.5); border-radius: 10px; padding: 20px 40px; box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);">
+                <h1 style="font-size: 64px; font-weight: 900; margin: 0; color: rgba(0, 255, 255, 1); text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);">Project RGBD</h1>
+            </div>
+            <div style="display: inline-block; background: rgba(0, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; padding: 15px 30px; margin-top: 20px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);">
+                <h2 style="font-size: 24px; font-weight: 700; margin: 0; color: rgba(0, 255, 255, 0.8); text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);">Principia of Progressive Depth Parallax Shader</h2>
+            </div>
+            <div class="scroll-indicator" style="margin-top: 60px;">
+                <p style="color: rgba(0, 255, 255, 0.7); text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);">Scroll to explore</p>
+                <p style="color: rgba(0, 255, 255, 0.7); text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);">↓</p>
+            </div>
+        </div>
+    </div>
+    <!-- 独立的侧边栏容器，确保能够接收点击事件 -->
+    <div class="sidebar-container" style="position: absolute; top: 0; left: 0; width: 200px; height: 100vh; z-index: 25; background: rgba(0, 0, 0, 0.9); border-right: 1px solid rgba(0, 255, 255, 0.3); padding: 20px 0; box-sizing: border-box; overflow-y: auto;">
+        <a href="#" class="sidebar-tab active" data-content="preface" style="display: block; padding: 15px 20px; color: rgba(0, 255, 255, 0.7); text-decoration: none; transition: all 0.3s ease; border-left: 3px solid transparent;">Preface</a>
+        <a href="#" class="sidebar-tab" data-content="pointcloud" style="display: block; padding: 15px 20px; color: rgba(0, 255, 255, 0.7); text-decoration: none; transition: all 0.3s ease; border-left: 3px solid transparent;">深度图转点云</a>
+        <a href="#" class="sidebar-tab" data-content="uvdepth" style="display: block; padding: 15px 20px; color: rgba(0, 255, 255, 0.7); text-decoration: none; transition: all 0.3s ease; border-left: 3px solid transparent;">UV+Depth to Coordinate</a>
+    </div>
+
+    <div class="content-container">
+        <div class="content-area" style="margin-left: 200px;">
+            <div class="markdown-content" id="markdownContent">
+                <!-- Markdown content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Perlin噪声函数
+        function PerlinNoise() {
+            const perm = new Uint8Array(512);
+            const p = new Uint8Array(256);
+            
+            for (let i = 0; i < 256; i++) {
+                p[i] = Math.floor(Math.random() * 256);
+            }
+            
+            for (let i = 0; i < 512; i++) {
+                perm[i] = p[i & 255];
+            }
+            
+            function fade(t) {
+                return t * t * t * (t * (t * 6 - 15) + 10);
+            }
+            
+            function lerp(t, a, b) {
+                return a + t * (b - a);
+            }
+            
+            function grad(hash, x, y, z) {
+                const h = hash & 15;
+                const u = h < 8 ? x : y;
+                const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+                return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+            }
+            
+            return function noise(x, y, z) {
+                const X = Math.floor(x) & 255;
+                const Y = Math.floor(y) & 255;
+                const Z = Math.floor(z) & 255;
+                
+                x -= Math.floor(x);
+                y -= Math.floor(y);
+                z -= Math.floor(z);
+                
+                const u = fade(x);
+                const v = fade(y);
+                const w = fade(z);
+                
+                const A = perm[X] + Y;
+                const AA = perm[A] + Z;
+                const AB = perm[A + 1] + Z;
+                const B = perm[X + 1] + Y;
+                const BA = perm[B] + Z;
+                const BB = perm[B + 1] + Z;
+                
+                return lerp(w, lerp(v, lerp(u, grad(perm[AA], x, y, z),
+                                               grad(perm[BA], x - 1, y, z)),
+                                       lerp(u, grad(perm[AB], x, y - 1, z),
+                                               grad(perm[BB], x - 1, y - 1, z))),
+                               lerp(v, lerp(u, grad(perm[AA + 1], x, y, z - 1),
+                                               grad(perm[BA + 1], x - 1, y, z - 1)),
+                                       lerp(u, grad(perm[AB + 1], x, y - 1, z - 1),
+                                               grad(perm[BB + 1], x - 1, y - 1, z - 1))));
+            };
+        }
+        
+        const noise = PerlinNoise();
+        
+        // 顶点着色器代码
+        const vertexShaderSource = `
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            uniform mat4 u_modelViewMatrix;
+            uniform mat4 u_projectionMatrix;
+            uniform float u_time;
+            varying vec3 v_color;
+            void main() {
+                gl_Position = u_projectionMatrix * u_modelViewMatrix * a_position;
+                v_color = a_color;
+                gl_PointSize = 4.0;
+            }
+        `;
+
+        // 片段着色器代码
+        const fragmentShaderSource = `
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                float distance = length(gl_PointCoord - vec2(0.5));
+                if (distance > 0.5) discard;
+                float alpha = 1.0 - distance * 2.0;
+                gl_FragColor = vec4(v_color, alpha);
+            }
+        `;
+
+        // 初始化WebGL
+        function initWebGL() {
+            const canvas = document.getElementById('webglCanvas');
+            const gl = canvas.getContext('webgl');
+
+            if (!gl) {
+                alert('WebGL不受支持');
+                return;
+            }
+
+            // 鼠标位置跟踪
+            let mouseX = 0;
+            let mouseY = 0;
+            let mouseActive = false;
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = ((e.clientX - rect.left) / canvas.width) * 2 - 1;
+                mouseY = -((e.clientY - rect.top) / canvas.height) * 2 + 1;
+                mouseActive = true;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                mouseActive = false;
+            });
+
+            // 设置画布大小
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // 创建着色器
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error('着色器编译错误:', gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+
+                return shader;
+            }
+
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+            // 创建着色器程序
+            function createProgram(gl, vertexShader, fragmentShader) {
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error('着色器程序链接错误:', gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                    return null;
+                }
+
+                return program;
+            }
+
+            const program = createProgram(gl, vertexShader, fragmentShader);
+            gl.useProgram(program);
+
+            // 获取属性和 uniform 位置
+            const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+            const colorAttributeLocation = gl.getAttribLocation(program, 'a_color');
+            const modelViewMatrixUniformLocation = gl.getUniformLocation(program, 'u_modelViewMatrix');
+            const projectionMatrixUniformLocation = gl.getUniformLocation(program, 'u_projectionMatrix');
+            const timeUniformLocation = gl.getUniformLocation(program, 'u_time');
+
+            // 创建缓冲区
+            const positionBuffer = gl.createBuffer();
+            const colorBuffer = gl.createBuffer();
+
+            // 生成粒子数据
+            const particleCount = 2000;
+            const positions = new Float32Array(particleCount * 4); // x, y, z, w
+            const colors = new Float32Array(particleCount * 3);   // r, g, b
+
+            for (let i = 0; i < particleCount; i++) {
+                // 位置
+                positions[i * 4] = (Math.random() - 0.5) * 3;
+                positions[i * 4 + 1] = (Math.random() - 0.5) * 3;
+                positions[i * 4 + 2] = (Math.random() - 0.5) * 3;
+                positions[i * 4 + 3] = 1.0;
+
+                // 初始颜色 - 明亮的颜色
+                colors[i * 3] = 0.5 + Math.random() * 0.5; // 0.5-1.0
+                colors[i * 3 + 1] = 0.5 + Math.random() * 0.5; // 0.5-1.0
+                colors[i * 3 + 2] = 0.5 + Math.random() * 0.5; // 0.5-1.0
+            }
+
+            // 填充缓冲区
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+            // 设置属性
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.vertexAttribPointer(positionAttributeLocation, 4, gl.FLOAT, false, 0, 0);
+
+            gl.enableVertexAttribArray(colorAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+            // 设置矩阵
+            function createIdentityMatrix() {
+                return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+            }
+
+            function createPerspectiveMatrix(fieldOfView, aspect, near, far) {
+                const f = 1.0 / Math.tan(fieldOfView * Math.PI / 360);
+                const rangeInv = 1.0 / (near - far);
+
+                return [
+                    f / aspect, 0, 0, 0,
+                    0, f, 0, 0,
+                    0, 0, (near + far) * rangeInv, -1,
+                    0, 0, near * far * rangeInv * 2, 0
+                ];
+            }
+
+            const modelViewMatrix = createIdentityMatrix();
+            const projectionMatrix = createPerspectiveMatrix(45, canvas.width / canvas.height, 0.1, 100);
+
+            gl.uniformMatrix4fv(modelViewMatrixUniformLocation, false, modelViewMatrix);
+            gl.uniformMatrix4fv(projectionMatrixUniformLocation, false, projectionMatrix);
+
+            // 启用混合
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+            // 绘制函数
+            function draw() {
+                const time = Date.now() * 0.001;
+                gl.uniform1f(timeUniformLocation, time);
+
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // 更新粒子位置和颜色
+                for (let i = 0; i < particleCount; i++) {
+                    // 使用Perlin噪声实现自然的随机移动
+                    const noiseX = noise(positions[i * 4] * 1.5, positions[i * 4 + 1] * 1.5, time);
+                    const noiseY = noise(positions[i * 4 + 1] * 1.5, positions[i * 4 + 2] * 1.5, time + 1000);
+                    const noiseZ = noise(positions[i * 4 + 2] * 1.5, positions[i * 4] * 1.5, time + 2000);
+                    
+                    positions[i * 4] += noiseX * 0.008;
+                    positions[i * 4 + 1] += noiseY * 0.008;
+                    positions[i * 4 + 2] += noiseZ * 0.008;
+
+                    // 鼠标交互
+                    if (mouseActive) {
+                        const dx = mouseX - positions[i * 4];
+                        const dy = mouseY - positions[i * 4 + 1];
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < 0.4) {
+                            // 粒子分为两部分：大部分吸引，小部分排斥
+                            if (i % 5 !== 0) { // 80%的粒子被吸引
+                                // 吸引
+                                const force = (0.4 - distance) * 0.01;
+                                positions[i * 4] += dx * force;
+                                positions[i * 4 + 1] += dy * force;
+                                
+                                // 鼠标附近的粒子变为蓝紫色
+                                colors[i * 3] = 0.7;
+                                colors[i * 3 + 1] = 0.3;
+                                colors[i * 3 + 2] = 1.0;
+                            } else {
+                                // 排斥
+                                const force = (0.4 - distance) * 0.01;
+                                positions[i * 4] -= dx * force;
+                                positions[i * 4 + 1] -= dy * force;
+                                
+                                // 鼠标附近的粒子变为洋红色
+                                colors[i * 3] = 1.0;
+                                colors[i * 3 + 1] = 0.0;
+                                colors[i * 3 + 2] = 1.0;
+                            }
+                        } else {
+                            // 远离鼠标的粒子恢复明亮的随机颜色
+                            colors[i * 3] = 0.5 + Math.random() * 0.5;
+                            colors[i * 3 + 1] = 0.5 + Math.random() * 0.5;
+                            colors[i * 3 + 2] = 0.5 + Math.random() * 0.5;
+                        }
+                    } else {
+                        // 鼠标不活动时保持明亮的随机颜色
+                        colors[i * 3] = 0.5 + Math.random() * 0.5;
+                        colors[i * 3 + 1] = 0.5 + Math.random() * 0.5;
+                        colors[i * 3 + 2] = 0.5 + Math.random() * 0.5;
+                    }
+
+                    // 边界检查
+                    if (positions[i * 4] > 1.5) positions[i * 4] = -1.5;
+                    if (positions[i * 4] < -1.5) positions[i * 4] = 1.5;
+                    if (positions[i * 4 + 1] > 1.5) positions[i * 4 + 1] = -1.5;
+                    if (positions[i * 4 + 1] < -1.5) positions[i * 4 + 1] = 1.5;
+                    if (positions[i * 4 + 2] > 1.5) positions[i * 4 + 2] = -1.5;
+                    if (positions[i * 4 + 2] < -1.5) positions[i * 4 + 2] = 1.5;
+                }
+
+                // 更新缓冲区数据
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferSubData(gl.ARRAY_BUFFER, 0, positions);
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+                gl.bufferSubData(gl.ARRAY_BUFFER, 0, colors);
+
+                // 绘制点
+                gl.drawArrays(gl.POINTS, 0, particleCount);
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+
+        // 初始化
+        window.onload = function() {
+            initWebGL();
+            initScrollEffect();
+            initTabs();
+            loadMarkdownContent();
+        };
+        
+        // 初始化滚动效果
+        function initScrollEffect() {
+            let scrollY = 0;
+            const overlay = document.querySelector('.overlay');
+            const contentContainer = document.querySelector('.content-container');
+            
+            // 标志：是否在内容容器内滚动
+            let isContentScrolling = false;
+            
+            // 内容容器滚动事件
+            contentContainer.addEventListener('wheel', function(e) {
+                isContentScrolling = true;
+                // 300ms后重置标志，确保正常滚动
+                setTimeout(() => {
+                    isContentScrolling = false;
+                }, 300);
+            });
+            
+            // 页面滚动事件
+            window.addEventListener('wheel', function(e) {
+                // 如果在内容容器内滚动，则不处理页面滚动
+                if (isContentScrolling) {
+                    return;
+                }
+                
+                scrollY += e.deltaY;
+                
+                // 限制滚动范围
+                const maxScroll = window.innerHeight;
+                scrollY = Math.max(0, Math.min(scrollY, maxScroll));
+                
+                // 计算标题上移的距离
+                const overlayTranslateY = -scrollY * 0.8;
+                
+                // 计算透明度 - 标题逐渐淡出，内容容器在滚动一定程度后开始显示
+                const overlayOpacity = 1 - (scrollY / maxScroll);
+                
+                // 滚动阈值 - 当滚动超过30%时开始显示内容
+                const showThreshold = maxScroll * 0.3;
+                let contentOpacity = 0;
+                if (scrollY > showThreshold) {
+                    contentOpacity = (scrollY - showThreshold) / (maxScroll - showThreshold);
+                }
+                
+                // 应用变换
+                overlay.style.transform = `translateY(${overlayTranslateY}px)`;
+                overlay.style.opacity = overlayOpacity;
+                contentContainer.style.opacity = contentOpacity;
+                
+                // 当内容开始显示时，隐藏滚动指示器
+                const scrollIndicator = document.querySelector('.scroll-indicator');
+                if (contentOpacity > 0.5) {
+                    scrollIndicator.style.opacity = '0';
+                } else {
+                    scrollIndicator.style.opacity = '1';
+                }
+                
+                // 保持内容容器在overlay上方，确保页签可以点击
+                contentContainer.style.zIndex = '20';
+                const sidebarContainer = document.querySelector('.sidebar-container');
+                if (sidebarContainer) {
+                    sidebarContainer.style.zIndex = '25';
+                }
+                overlay.style.zIndex = '5';
+            });
+        }
+
+        // 确保内容容器在页签点击时可见
+        function ensureContentVisible() {
+            const contentContainer = document.querySelector('.content-container');
+            const overlay = document.querySelector('.overlay');
+            const sidebarContainer = document.querySelector('.sidebar-container');
+            contentContainer.style.opacity = '1';
+            // 确保内容容器和侧边栏在最上层，能够接收点击事件
+            contentContainer.style.zIndex = '20';
+            sidebarContainer.style.zIndex = '25';
+            overlay.style.zIndex = '5';
+        }
+        
+        // 加载Markdown内容
+        function loadMarkdownContent() {
+            loadContent('preface');
+        }
+        
+        // 加载指定内容
+        function loadContent(contentId) {
+            const markdownContent = document.getElementById('markdownContent');
+            
+            switch(contentId) {
+                case 'preface':
+                    let filePath = 'markdown/Preface.md';
+                    fetch(filePath)
+                        .then(response => response.text())
+                        .then(text => {
+                            // 简单的Markdown解析
+                            markdownContent.innerHTML = parseMarkdown(text);
+                        })
+                        .catch(error => {
+                            console.error('Error loading markdown file:', error);
+                            markdownContent.innerHTML = '<p>Error loading content.</p>';
+                        });
+                    break;
+                case 'pointcloud':
+                    markdownContent.innerHTML = `
+                        <h1>深度图转点云</h1>
+                        <h2>Web3D 示例</h2>
+                        <p>选择一个示例来查看深度图转换为点云的效果：</p>
+                        <div class="button-container">
+                            <button class="cyber-button" onclick="loadPointCloudDemo('FluxDemo_1D')">FluxDemo_1D</button>
+                            <button class="cyber-button" onclick="loadPointCloudDemo('FluxDemo_2Klein')">FluxDemo_2Klein</button>
+                        </div>
+                        <div id="pointCloudContainer" style="margin-top: 40px; width: 100%; height: 600px; border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; overflow: hidden;">
+                            <canvas id="pointCloudCanvas" style="width: 100%; height: 100%;"></canvas>
+                        </div>
+                        <div style="margin-top: 20px; color: rgba(0, 255, 255, 0.8);">
+                            <p>操作说明：</p>
+                            <ul>
+                                <li>鼠标拖动：旋转视角</li>
+                                <li>鼠标滚轮：缩放</li>
+                                <li>Shift + 鼠标拖动：平移</li>
+                            </ul>
+                        </div>
+                    `;
+                    // 初始化点云场景
+                    setTimeout(initPointCloudScene, 100);
+                    break;
+                case 'uvdepth':
+                    markdownContent.innerHTML = `
+                        <h1>UV+Depth to Coordinate</h1>
+                        <h2>UV颜色+深度蓝色的二维深度图像</h2>
+                        <p>选择一个示例来查看UV颜色和深度信息的可视化效果：</p>
+                        <div class="button-container">
+                            <button class="cyber-button" onclick="loadUVDepthDemo('FluxDemo_1D')">FluxDemo_1D</button>
+                            <button class="cyber-button" onclick="loadUVDepthDemo('FluxDemo_2Klein')">FluxDemo_2Klein</button>
+                        </div>
+                        <div id="uvDepthContainer" style="margin-top: 40px; text-align: center; position: relative;">
+                            <img id="uvDepthImage" src="" alt="UV+Depth图像" style="max-width: 100%; max-height: 600px; border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px;">
+                            <div id="scrollHint" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: rgba(0, 255, 255, 0.8); text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); font-size: 14px;">
+                                向下滚动查看高度正视图
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; color: rgba(0, 255, 255, 0.8);">
+                            <p>说明：</p>
+                            <ul>
+                                <li>红色通道：U坐标 (水平位置)</li>
+                                <li>绿色通道：V坐标 (垂直位置)</li>
+                                <li>蓝色通道：深度值 (越蓝表示越远)</li>
+                            </ul>
+                        </div>
+                    `;
+                    // 初始化滚动效果
+                    setTimeout(initUVDepthScroll, 100);
+                    break;
+                default:
+                    markdownContent.innerHTML = '<p>Content not found.</p>';
+            }
+        }
+        
+        // 初始化页签切换功能
+        function initTabs() {
+            console.log('初始化页签切换功能');
+            const tabs = document.querySelectorAll('.sidebar-tab');
+            console.log('找到的页签数量:', tabs.length);
+            
+            tabs.forEach(tab => {
+                console.log('为页签添加点击事件监听器:', tab.textContent);
+                tab.addEventListener('click', function(e) {
+                    console.log('页签被点击:', this.textContent);
+                    e.preventDefault();
+                    
+                    // 确保内容容器可见
+                    ensureContentVisible();
+                    
+                    // 移除所有页签的active类
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // 添加当前页签的active类
+                    this.classList.add('active');
+                    
+                    // 加载对应内容
+                    const contentId = this.getAttribute('data-content');
+                    console.log('加载内容:', contentId);
+                    loadContent(contentId);
+                });
+            });
+        }
+        
+        // 简单的Markdown解析函数
+        function parseMarkdown(text) {
+            // 解析标题
+            text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+            text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+            
+            // 解析无序列表
+            text = text.replace(/^- (.*$)/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
+            
+            // 解析图片 - 确保路径正确
+            text = text.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1">');
+            
+            // 解析段落
+            text = text.replace(/^(?!<h[1-6]>)(?!<ul>)(?!<li>)(.*$)/gm, '<p>$1</p>');
+            
+            // 清理多余的空行
+            text = text.replace(/\n{3,}/g, '\n\n');
+            
+            return text;
+        }
+
+        // 点云相关变量
+        let pointCloudScene = null;
+
+        // 初始化点云场景
+        function initPointCloudScene() {
+            if (pointCloudScene) {
+                return;
+            }
+
+            pointCloudScene = {
+                gl: null,
+                canvas: null,
+                program: null,
+                positionBuffer: null,
+                colorBuffer: null,
+                modelViewMatrix: null,
+                projectionMatrix: null,
+                camera: {
+                    position: [0, 0, 3],
+                    target: [0, 0, 0],
+                    up: [0, 1, 0],
+                    yaw: -90,
+                    pitch: 0,
+                    movementSpeed: 0.05,
+                    mouseSensitivity: 0.1
+                },
+                mouse: {
+                    x: 0,
+                    y: 0,
+                    down: false,
+                    shiftDown: false
+                },
+                points: [],
+                colors: [],
+                currentDemo: null
+            };
+
+            const canvas = document.getElementById('pointCloudCanvas');
+            if (!canvas) return;
+
+            pointCloudScene.canvas = canvas;
+            const gl = canvas.getContext('webgl');
+            if (!gl) {
+                console.error('WebGL不受支持');
+                return;
+            }
+            pointCloudScene.gl = gl;
+
+            // 设置画布大小
+            function resizeCanvas() {
+                const container = document.getElementById('pointCloudContainer');
+                if (container) {
+                    canvas.width = container.clientWidth;
+                    canvas.height = container.clientHeight;
+                }
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                if (pointCloudScene.projectionMatrix) {
+                    pointCloudScene.projectionMatrix = createPerspectiveMatrix(
+                        45, canvas.width / canvas.height, 0.1, 100
+                    );
+                }
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // 顶点着色器代码
+            const vertexShaderSource = `
+                attribute vec3 a_position;
+                attribute vec3 a_color;
+                uniform mat4 u_modelViewMatrix;
+                uniform mat4 u_projectionMatrix;
+                varying vec3 v_color;
+                void main() {
+                    gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(a_position, 1.0);
+                    v_color = a_color;
+                    gl_PointSize = 2.0;
+                }
+            `;
+
+            // 片段着色器代码
+            const fragmentShaderSource = `
+                precision mediump float;
+                varying vec3 v_color;
+                void main() {
+                    float distance = length(gl_PointCoord - vec2(0.5));
+                    if (distance > 0.5) discard;
+                    float alpha = 1.0 - distance * 2.0;
+                    gl_FragColor = vec4(v_color, alpha);
+                }
+            `;
+
+            // 创建着色器
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error('着色器编译错误:', gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+
+                return shader;
+            }
+
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+            // 创建着色器程序
+            function createProgram(gl, vertexShader, fragmentShader) {
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error('着色器程序链接错误:', gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                    return null;
+                }
+
+                return program;
+            }
+
+            const program = createProgram(gl, vertexShader, fragmentShader);
+            gl.useProgram(program);
+            pointCloudScene.program = program;
+
+            // 获取属性和 uniform 位置
+            const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+            const colorAttributeLocation = gl.getAttribLocation(program, 'a_color');
+            const modelViewMatrixUniformLocation = gl.getUniformLocation(program, 'u_modelViewMatrix');
+            const projectionMatrixUniformLocation = gl.getUniformLocation(program, 'u_projectionMatrix');
+
+            // 创建缓冲区
+            const positionBuffer = gl.createBuffer();
+            const colorBuffer = gl.createBuffer();
+            pointCloudScene.positionBuffer = positionBuffer;
+            pointCloudScene.colorBuffer = colorBuffer;
+
+            // 设置属性
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+            gl.enableVertexAttribArray(colorAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+            // 设置矩阵
+            function createIdentityMatrix() {
+                return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+            }
+
+            function createPerspectiveMatrix(fieldOfView, aspect, near, far) {
+                const f = 1.0 / Math.tan(fieldOfView * Math.PI / 360);
+                const rangeInv = 1.0 / (near - far);
+
+                return [
+                    f / aspect, 0, 0, 0,
+                    0, f, 0, 0,
+                    0, 0, (near + far) * rangeInv, -1,
+                    0, 0, near * far * rangeInv * 2, 0
+                ];
+            }
+
+            function createLookAtMatrix(cameraPosition, target, up) {
+                const zAxis = normalize(subtractVectors(cameraPosition, target));
+                const xAxis = normalize(crossVectors(up, zAxis));
+                const yAxis = crossVectors(zAxis, xAxis);
+
+                return [
+                    xAxis[0], yAxis[0], zAxis[0], 0,
+                    xAxis[1], yAxis[1], zAxis[1], 0,
+                    xAxis[2], yAxis[2], zAxis[2], 0,
+                    -dotVectors(xAxis, cameraPosition),
+                    -dotVectors(yAxis, cameraPosition),
+                    -dotVectors(zAxis, cameraPosition),
+                    1
+                ];
+            }
+
+            function multiplyMatrices(a, b) {
+                const result = new Array(16);
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        result[i * 4 + j] = 
+                            a[i * 4 + 0] * b[0 * 4 + j] +
+                            a[i * 4 + 1] * b[1 * 4 + j] +
+                            a[i * 4 + 2] * b[2 * 4 + j] +
+                            a[i * 4 + 3] * b[3 * 4 + j];
+                    }
+                }
+                return result;
+            }
+
+            function normalize(v) {
+                const length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+                return [v[0] / length, v[1] / length, v[2] / length];
+            }
+
+            function subtractVectors(a, b) {
+                return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+            }
+
+            function crossVectors(a, b) {
+                return [
+                    a[1] * b[2] - a[2] * b[1],
+                    a[2] * b[0] - a[0] * b[2],
+                    a[0] * b[1] - a[1] * b[0]
+                ];
+            }
+
+            function dotVectors(a, b) {
+                return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            }
+
+            pointCloudScene.projectionMatrix = createPerspectiveMatrix(
+                45, canvas.width / canvas.height, 0.1, 100
+            );
+
+            // 鼠标事件处理
+            canvas.addEventListener('mousedown', (e) => {
+                pointCloudScene.mouse.down = true;
+                pointCloudScene.mouse.x = e.clientX;
+                pointCloudScene.mouse.y = e.clientY;
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                pointCloudScene.mouse.down = false;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!pointCloudScene.mouse.down) return;
+
+                const dx = e.clientX - pointCloudScene.mouse.x;
+                const dy = e.clientY - pointCloudScene.mouse.y;
+                pointCloudScene.mouse.x = e.clientX;
+                pointCloudScene.mouse.y = e.clientY;
+
+                if (pointCloudScene.mouse.shiftDown) {
+                    // 平移
+                    const speed = 0.01;
+                    const xAxis = normalize(crossVectors(pointCloudScene.camera.up, 
+                        normalize(subtractVectors(pointCloudScene.camera.position, pointCloudScene.camera.target))));
+                    const yAxis = pointCloudScene.camera.up;
+
+                    const moveX = dx * speed;
+                    const moveY = -dy * speed;
+
+                    pointCloudScene.camera.position[0] += xAxis[0] * moveX + yAxis[0] * moveY;
+                    pointCloudScene.camera.position[1] += xAxis[1] * moveX + yAxis[1] * moveY;
+                    pointCloudScene.camera.position[2] += xAxis[2] * moveX + yAxis[2] * moveY;
+                    pointCloudScene.camera.target[0] += xAxis[0] * moveX + yAxis[0] * moveY;
+                    pointCloudScene.camera.target[1] += xAxis[1] * moveX + yAxis[1] * moveY;
+                    pointCloudScene.camera.target[2] += xAxis[2] * moveX + yAxis[2] * moveY;
+                } else {
+                    // 旋转
+                    pointCloudScene.camera.yaw += dx * pointCloudScene.camera.mouseSensitivity;
+                    pointCloudScene.camera.pitch += dy * pointCloudScene.camera.mouseSensitivity;
+
+                    // 限制俯仰角
+                    pointCloudScene.camera.pitch = Math.max(-89, Math.min(89, pointCloudScene.camera.pitch));
+
+                    // 更新相机位置
+                    const yawRad = pointCloudScene.camera.yaw * Math.PI / 180;
+                    const pitchRad = pointCloudScene.camera.pitch * Math.PI / 180;
+                    const distance = Math.sqrt(
+                        Math.pow(pointCloudScene.camera.position[0] - pointCloudScene.camera.target[0], 2) +
+                        Math.pow(pointCloudScene.camera.position[1] - pointCloudScene.camera.target[1], 2) +
+                        Math.pow(pointCloudScene.camera.position[2] - pointCloudScene.camera.target[2], 2)
+                    );
+
+                    pointCloudScene.camera.position[0] = pointCloudScene.camera.target[0] + 
+                        distance * Math.cos(pitchRad) * Math.cos(yawRad);
+                    pointCloudScene.camera.position[1] = pointCloudScene.camera.target[1] + 
+                        distance * Math.sin(pitchRad);
+                    pointCloudScene.camera.position[2] = pointCloudScene.camera.target[2] + 
+                        distance * Math.cos(pitchRad) * Math.sin(yawRad);
+                }
+            });
+
+            // 鼠标滚轮事件处理
+            canvas.addEventListener('wheel', (e) => {
+                const speed = 0.1;
+                const direction = e.deltaY > 0 ? 1 : -1;
+                const viewDirection = normalize(subtractVectors(
+                    pointCloudScene.camera.position, pointCloudScene.camera.target
+                ));
+                const moveDistance = speed * direction;
+
+                pointCloudScene.camera.position[0] += viewDirection[0] * moveDistance;
+                pointCloudScene.camera.position[1] += viewDirection[1] * moveDistance;
+                pointCloudScene.camera.position[2] += viewDirection[2] * moveDistance;
+            });
+
+            // 键盘事件处理
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Shift') {
+                    pointCloudScene.mouse.shiftDown = true;
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'Shift') {
+                    pointCloudScene.mouse.shiftDown = false;
+                }
+            });
+
+            // 启用混合
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+            // 绘制函数
+            function draw() {
+                const gl = pointCloudScene.gl;
+                const program = pointCloudScene.program;
+
+                gl.clearColor(0.1, 0.1, 0.1, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // 更新模型视图矩阵
+                const viewMatrix = createLookAtMatrix(
+                    pointCloudScene.camera.position,
+                    pointCloudScene.camera.target,
+                    pointCloudScene.camera.up
+                );
+                const modelMatrix = createIdentityMatrix();
+                const modelViewMatrix = multiplyMatrices(viewMatrix, modelMatrix);
+
+                // 设置 uniform
+                gl.uniformMatrix4fv(modelViewMatrixUniformLocation, false, modelViewMatrix);
+                gl.uniformMatrix4fv(projectionMatrixUniformLocation, false, pointCloudScene.projectionMatrix);
+
+                // 更新缓冲区数据
+                if (pointCloudScene.points.length > 0) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudScene.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pointCloudScene.points), gl.DYNAMIC_DRAW);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudScene.colorBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pointCloudScene.colors), gl.DYNAMIC_DRAW);
+
+                    // 绘制点
+                    gl.drawArrays(gl.POINTS, 0, pointCloudScene.points.length / 3);
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+
+        // 加载点云演示
+        function loadPointCloudDemo(demoName) {
+            if (!pointCloudScene) {
+                initPointCloudScene();
+            }
+
+            pointCloudScene.currentDemo = demoName;
+            const basePath = `RGBDSample/${demoName}/`;
+            const colorPath = basePath + 'Color.png';
+            const depthPath = basePath + 'Depth.png';
+
+            // 加载颜色图像
+            const colorImage = new Image();
+            colorImage.crossOrigin = 'anonymous';
+            colorImage.onload = function() {
+                // 加载深度图像
+                const depthImage = new Image();
+                depthImage.crossOrigin = 'anonymous';
+                depthImage.onload = function() {
+                    // 转换深度图为点云
+                    convertDepthToPointCloud(colorImage, depthImage);
+                };
+                depthImage.src = depthPath;
+            };
+            colorImage.src = colorPath;
+        }
+
+        // 将深度图转换为点云
+        function convertDepthToPointCloud(colorImage, depthImage) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const width = depthImage.width;
+            const height = depthImage.height;
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制深度图像
+            ctx.drawImage(depthImage, 0, 0);
+            const depthData = ctx.getImageData(0, 0, width, height).data;
+
+            // 绘制颜色图像
+            ctx.drawImage(colorImage, 0, 0);
+            const colorData = ctx.getImageData(0, 0, width, height).data;
+
+            const points = [];
+            const colors = [];
+
+            // 相机参数（简化版）
+            const fx = width;  // 焦距，假设像素焦距为图像宽度
+            const fy = width;
+            const cx = width / 2;
+            const cy = height / 2;
+            const depthScale = 0.001;  // 深度缩放因子
+
+            // 降采样率（提高性能）
+            const downSample = 4;
+
+            // 遍历像素
+            for (let y = 0; y < height; y += downSample) {
+                for (let x = 0; x < width; x += downSample) {
+                    const index = (y * width + x) * 4;
+                    
+                    // 从深度图获取深度值（假设深度图是灰度图）
+                    const depthValue = depthData[index];  // 使用红色通道
+                    
+                    // 跳过过远或过近的点
+                    if (depthValue < 10 || depthValue > 245) continue;
+
+                    // 计算3D坐标
+                    const z = depthValue * depthScale;
+                    const x3d = (x - cx) * z / fx;
+                    const y3d = (y - cy) * z / fy;
+
+                    // 从颜色图获取颜色
+                    const r = colorData[index] / 255;
+                    const g = colorData[index + 1] / 255;
+                    const b = colorData[index + 2] / 255;
+
+                    // 添加到点云和颜色数组
+                    points.push(x3d, -y3d, -z);  // 翻转y和z轴以获得正确的方向
+                    colors.push(r, g, b);
+                }
+            }
+
+            // 更新点云和颜色
+            pointCloudScene.points = points;
+            pointCloudScene.colors = colors;
+
+            console.log(`转换完成，生成了 ${points.length / 3} 个点`);
+        }
+
+        // UV+Depth相关变量
+        let uvDepthData = {
+            currentDemo: null,
+            depthImage: null,
+            uvDepthImage: null,
+            heightmapImage: null,
+            isTransitioning: false,
+            transitionProgress: 0,
+            currentImage: null
+        };
+
+        // 加载UV+Depth演示
+        function loadUVDepthDemo(demoName) {
+            uvDepthData.currentDemo = demoName;
+            const basePath = `RGBDSample/${demoName}/`;
+            const depthPath = basePath + 'Depth.png';
+
+            // 加载深度图像
+            const depthImage = new Image();
+            depthImage.crossOrigin = 'anonymous';
+            depthImage.onload = function() {
+                uvDepthData.depthImage = depthImage;
+                // 生成UV+Depth图像
+                const uvDepthImage = generateUVDepthImage(depthImage);
+                uvDepthData.uvDepthImage = uvDepthImage;
+                // 生成高度图图像
+                const heightmapImage = generateHeightmapImage(depthImage);
+                uvDepthData.heightmapImage = heightmapImage;
+                // 显示UV+Depth图像
+                const imgElement = document.getElementById('uvDepthImage');
+                imgElement.src = uvDepthImage;
+                uvDepthData.currentImage = uvDepthImage;
+                // 初始化滚动效果
+                initUVDepthScroll();
+            };
+            depthImage.src = depthPath;
+        }
+
+        // 生成UV+Depth图像
+        function generateUVDepthImage(depthImage) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const width = depthImage.width;
+            const height = depthImage.height;
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制深度图像
+            ctx.drawImage(depthImage, 0, 0);
+            const depthData = ctx.getImageData(0, 0, width, height).data;
+
+            // 创建新的图像数据
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+
+            // 遍历每个像素
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = (y * width + x) * 4;
+                    
+                    // 从深度图获取深度值
+                    const depthValue = depthData[index];
+                    
+                    // 计算UV坐标
+                    const u = x / width;  // U坐标 (0-1)
+                    const v = y / height;  // V坐标 (0-1)
+                    
+                    // rgb = U, V, Depth
+                    data[index] = u * 255;     // 红色通道: U坐标
+                    data[index + 1] = v * 255; // 绿色通道: V坐标
+                    data[index + 2] = depthValue; // 蓝色通道: 深度值
+                    data[index + 3] = 255;     //  alpha通道: 不透明
+                }
+            }
+
+            // 将图像数据绘制到画布
+            ctx.putImageData(imageData, 0, 0);
+            
+            // 转换为Data URL
+            return canvas.toDataURL('image/png');
+        }
+
+        // 生成高度图图像
+        function generateHeightmapImage(depthImage) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const width = depthImage.width;
+            const height = depthImage.height;
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制深度图像
+            ctx.drawImage(depthImage, 0, 0);
+            const depthData = ctx.getImageData(0, 0, width, height).data;
+
+            // 创建新的图像数据
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+
+            // 遍历每个像素
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = (y * width + x) * 4;
+                    
+                    // 从深度图获取深度值
+                    const depthValue = depthData[index];
+                    
+                    // 高度图使用灰度表示，深度值直接作为灰度值
+                    const grayValue = 255 - depthValue; // 反转深度值，使近处更亮
+                    
+                    data[index] = grayValue;     // 红色通道
+                    data[index + 1] = grayValue; // 绿色通道
+                    data[index + 2] = grayValue; // 蓝色通道
+                    data[index + 3] = 255;       //  alpha通道: 不透明
+                }
+            }
+
+            // 将图像数据绘制到画布
+            ctx.putImageData(imageData, 0, 0);
+            
+            // 转换为Data URL
+            return canvas.toDataURL('image/png');
+        }
+
+        // 初始化UV+Depth滚动效果
+        function initUVDepthScroll() {
+            const container = document.getElementById('uvDepthContainer');
+            if (!container) return;
+
+            // 移除之前的事件监听器，避免重复
+            container.removeEventListener('wheel', handleUVDepthScroll);
+            // 添加新的滚动事件监听器
+            container.addEventListener('wheel', handleUVDepthScroll);
+        }
+
+        // 处理UV+Depth滚动事件
+        function handleUVDepthScroll(e) {
+            if (!uvDepthData.uvDepthImage || !uvDepthData.heightmapImage) return;
+
+            // 向下滚动时，切换到高度图
+            if (e.deltaY > 0 && !uvDepthData.isTransitioning) {
+                startTransition('heightmap');
+            }
+            // 向上滚动时，切换回UV+Depth图像
+            else if (e.deltaY < 0 && !uvDepthData.isTransitioning) {
+                startTransition('uvdepth');
+            }
+        }
+
+        // 开始过渡动画
+        function startTransition(target) {
+            uvDepthData.isTransitioning = true;
+            uvDepthData.transitionProgress = 0;
+            
+            // 根据目标类型设置过渡函数
+            if (target === 'heightmap') {
+                transitionToHeightmap();
+            } else {
+                transitionToUVDepth();
+            }
+        }
+
+        // 过渡到高度图
+        function transitionToHeightmap() {
+            if (uvDepthData.transitionProgress >= 1) {
+                uvDepthData.isTransitioning = false;
+                uvDepthData.currentImage = uvDepthData.heightmapImage;
+                const imgElement = document.getElementById('uvDepthImage');
+                imgElement.src = uvDepthData.heightmapImage;
+                return;
+            }
+
+            // 更新过渡进度
+            uvDepthData.transitionProgress += 0.05;
+            if (uvDepthData.transitionProgress > 1) {
+                uvDepthData.transitionProgress = 1;
+            }
+
+            // 生成过渡中的图像
+            const transitionImage = generateTransitionImage(
+                uvDepthData.uvDepthImage,
+                uvDepthData.heightmapImage,
+                uvDepthData.transitionProgress
+            );
+            
+            // 更新显示
+            const imgElement = document.getElementById('uvDepthImage');
+            imgElement.src = transitionImage;
+
+            // 继续过渡动画
+            requestAnimationFrame(transitionToHeightmap);
+        }
+
+        // 过渡到UV+Depth图像
+        function transitionToUVDepth() {
+            if (uvDepthData.transitionProgress >= 1) {
+                uvDepthData.isTransitioning = false;
+                uvDepthData.currentImage = uvDepthData.uvDepthImage;
+                const imgElement = document.getElementById('uvDepthImage');
+                imgElement.src = uvDepthData.uvDepthImage;
+                return;
+            }
+
+            // 更新过渡进度
+            uvDepthData.transitionProgress += 0.05;
+            if (uvDepthData.transitionProgress > 1) {
+                uvDepthData.transitionProgress = 1;
+            }
+
+            // 生成过渡中的图像
+            const transitionImage = generateTransitionImage(
+                uvDepthData.heightmapImage,
+                uvDepthData.uvDepthImage,
+                uvDepthData.transitionProgress
+            );
+            
+            // 更新显示
+            const imgElement = document.getElementById('uvDepthImage');
+            imgElement.src = transitionImage;
+
+            // 继续过渡动画
+            requestAnimationFrame(transitionToUVDepth);
+        }
+
+        // 生成过渡中的图像
+        function generateTransitionImage(fromImage, toImage, progress) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 创建临时图像对象来加载fromImage和toImage
+            const fromImg = new Image();
+            fromImg.src = fromImage;
+            const toImg = new Image();
+            toImg.src = toImage;
+            
+            // 设置画布大小
+            canvas.width = fromImg.width;
+            canvas.height = fromImg.height;
+            
+            // 绘制第一个图像
+            ctx.globalAlpha = 1 - progress;
+            ctx.drawImage(fromImg, 0, 0);
+            
+            // 绘制第二个图像
+            ctx.globalAlpha = progress;
+            ctx.drawImage(toImg, 0, 0);
+            
+            // 转换为Data URL
+            return canvas.toDataURL('image/png');
+        }
+    </script>
+</body>
+</html>
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error('着色器编译错误:', gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+
+                return shader;
+            }
+
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+            // 创建着色器程序
+            function createProgram(gl, vertexShader, fragmentShader) {
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error('着色器程序链接错误:', gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                    return null;
+                }
+
+                return program;
+            }
+
+            const program = createProgram(gl, vertexShader, fragmentShader);
+            gl.useProgram(program);
+            uvDepthScene.program = program;
+
+            // 获取属性和 uniform 位置
+            const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+            const colorAttributeLocation = gl.getAttribLocation(program, 'a_color');
+            const modelViewMatrixUniformLocation = gl.getUniformLocation(program, 'u_modelViewMatrix');
+            const projectionMatrixUniformLocation = gl.getUniformLocation(program, 'u_projectionMatrix');
+
+            // 创建缓冲区
+            const positionBuffer = gl.createBuffer();
+            const colorBuffer = gl.createBuffer();
+            const indexBuffer = gl.createBuffer();
+            uvDepthScene.positionBuffer = positionBuffer;
+            uvDepthScene.colorBuffer = colorBuffer;
+            uvDepthScene.indexBuffer = indexBuffer;
+
+            // 设置属性
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+            gl.enableVertexAttribArray(colorAttributeLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+            // 设置矩阵
+            function createIdentityMatrix() {
+                return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+            }
+
+            function createPerspectiveMatrix(fieldOfView, aspect, near, far) {
+                const f = 1.0 / Math.tan(fieldOfView * Math.PI / 360);
+                const rangeInv = 1.0 / (near - far);
+
+                return [
+                    f / aspect, 0, 0, 0,
+                    0, f, 0, 0,
+                    0, 0, (near + far) * rangeInv, -1,
+                    0, 0, near * far * rangeInv * 2, 0
+                ];
+            }
+
+            function createLookAtMatrix(cameraPosition, target, up) {
+                const zAxis = normalize(subtractVectors(cameraPosition, target));
+                const xAxis = normalize(crossVectors(up, zAxis));
+                const yAxis = crossVectors(zAxis, xAxis);
+
+                return [
+                    xAxis[0], yAxis[0], zAxis[0], 0,
+                    xAxis[1], yAxis[1], zAxis[1], 0,
+                    xAxis[2], yAxis[2], zAxis[2], 0,
+                    -dotVectors(xAxis, cameraPosition),
+                    -dotVectors(yAxis, cameraPosition),
+                    -dotVectors(zAxis, cameraPosition),
+                    1
+                ];
+            }
+
+            function multiplyMatrices(a, b) {
+                const result = new Array(16);
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        result[i * 4 + j] = 
+                            a[i * 4 + 0] * b[0 * 4 + j] +
+                            a[i * 4 + 1] * b[1 * 4 + j] +
+                            a[i * 4 + 2] * b[2 * 4 + j] +
+                            a[i * 4 + 3] * b[3 * 4 + j];
+                    }
+                }
+                return result;
+            }
+
+            function normalize(v) {
+                const length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+                return [v[0] / length, v[1] / length, v[2] / length];
+            }
+
+            function subtractVectors(a, b) {
+                return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+            }
+
+            function crossVectors(a, b) {
+                return [
+                    a[1] * b[2] - a[2] * b[1],
+                    a[2] * b[0] - a[0] * b[2],
+                    a[0] * b[1] - a[1] * b[0]
+                ];
+            }
+
+            function dotVectors(a, b) {
+                return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            }
+
+            uvDepthScene.projectionMatrix = createPerspectiveMatrix(
+                45, canvas.width / canvas.height, 0.1, 100
+            );
+
+            // 鼠标事件处理
+            canvas.addEventListener('mousedown', (e) => {
+                uvDepthScene.mouse.down = true;
+                uvDepthScene.mouse.x = e.clientX;
+                uvDepthScene.mouse.y = e.clientY;
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                uvDepthScene.mouse.down = false;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!uvDepthScene.mouse.down) return;
+
+                const dx = e.clientX - uvDepthScene.mouse.x;
+                const dy = e.clientY - uvDepthScene.mouse.y;
+                uvDepthScene.mouse.x = e.clientX;
+                uvDepthScene.mouse.y = e.clientY;
+
+                if (uvDepthScene.mouse.shiftDown) {
+                    // 平移
+                    const speed = 0.01;
+                    const xAxis = normalize(crossVectors(uvDepthScene.camera.up, 
+                        normalize(subtractVectors(uvDepthScene.camera.position, uvDepthScene.camera.target))));
+                    const yAxis = uvDepthScene.camera.up;
+
+                    const moveX = dx * speed;
+                    const moveY = -dy * speed;
+
+                    uvDepthScene.camera.position[0] += xAxis[0] * moveX + yAxis[0] * moveY;
+                    uvDepthScene.camera.position[1] += xAxis[1] * moveX + yAxis[1] * moveY;
+                    uvDepthScene.camera.position[2] += xAxis[2] * moveX + yAxis[2] * moveY;
+                    uvDepthScene.camera.target[0] += xAxis[0] * moveX + yAxis[0] * moveY;
+                    uvDepthScene.camera.target[1] += xAxis[1] * moveX + yAxis[1] * moveY;
+                    uvDepthScene.camera.target[2] += xAxis[2] * moveX + yAxis[2] * moveY;
+                } else {
+                    // 旋转
+                    uvDepthScene.camera.yaw += dx * uvDepthScene.camera.mouseSensitivity;
+                    uvDepthScene.camera.pitch += dy * uvDepthScene.camera.mouseSensitivity;
+
+                    // 限制俯仰角
+                    uvDepthScene.camera.pitch = Math.max(-89, Math.min(89, uvDepthScene.camera.pitch));
+
+                    // 更新相机位置
+                    const yawRad = uvDepthScene.camera.yaw * Math.PI / 180;
+                    const pitchRad = uvDepthScene.camera.pitch * Math.PI / 180;
+                    const distance = Math.sqrt(
+                        Math.pow(uvDepthScene.camera.position[0] - uvDepthScene.camera.target[0], 2) +
+                        Math.pow(uvDepthScene.camera.position[1] - uvDepthScene.camera.target[1], 2) +
+                        Math.pow(uvDepthScene.camera.position[2] - uvDepthScene.camera.target[2], 2)
+                    );
+
+                    uvDepthScene.camera.position[0] = uvDepthScene.camera.target[0] + 
+                        distance * Math.cos(pitchRad) * Math.cos(yawRad);
+                    uvDepthScene.camera.position[1] = uvDepthScene.camera.target[1] + 
+                        distance * Math.sin(pitchRad);
+                    uvDepthScene.camera.position[2] = uvDepthScene.camera.target[2] + 
+                        distance * Math.cos(pitchRad) * Math.sin(yawRad);
+                }
+            });
+
+            // 鼠标滚轮事件处理
+            canvas.addEventListener('wheel', (e) => {
+                const speed = 0.1;
+                const direction = e.deltaY > 0 ? 1 : -1;
+                const viewDirection = normalize(subtractVectors(
+                    uvDepthScene.camera.position, uvDepthScene.camera.target
+                ));
+                const moveDistance = speed * direction;
+
+                uvDepthScene.camera.position[0] += viewDirection[0] * moveDistance;
+                uvDepthScene.camera.position[1] += viewDirection[1] * moveDistance;
+                uvDepthScene.camera.position[2] += viewDirection[2] * moveDistance;
+            });
+
+            // 键盘事件处理
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Shift') {
+                    uvDepthScene.mouse.shiftDown = true;
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'Shift') {
+                    uvDepthScene.mouse.shiftDown = false;
+                }
+            });
+
+            // 启用深度测试
+            gl.enable(gl.DEPTH_TEST);
+
+            // 绘制函数
+            function draw() {
+                const gl = uvDepthScene.gl;
+                const program = uvDepthScene.program;
+
+                gl.clearColor(0.1, 0.1, 0.1, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // 更新模型视图矩阵
+                const viewMatrix = createLookAtMatrix(
+                    uvDepthScene.camera.position,
+                    uvDepthScene.camera.target,
+                    uvDepthScene.camera.up
+                );
+                const modelMatrix = createIdentityMatrix();
+                const modelViewMatrix = multiplyMatrices(viewMatrix, modelMatrix);
+
+                // 设置 uniform
+                gl.uniformMatrix4fv(modelViewMatrixUniformLocation, false, modelViewMatrix);
+                gl.uniformMatrix4fv(projectionMatrixUniformLocation, false, uvDepthScene.projectionMatrix);
+
+                // 更新缓冲区数据
+                if (uvDepthScene.vertices.length > 0) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, uvDepthScene.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvDepthScene.vertices), gl.DYNAMIC_DRAW);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, uvDepthScene.colorBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvDepthScene.colors), gl.DYNAMIC_DRAW);
+
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, uvDepthScene.indexBuffer);
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(uvDepthScene.indices), gl.DYNAMIC_DRAW);
+
+                    // 绘制三角形
+                    gl.drawElements(gl.TRIANGLES, uvDepthScene.indices.length, gl.UNSIGNED_INT, 0);
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+
+        // 加载UV+Depth演示
+        function loadUVDepthDemo(demoName) {
+            if (!uvDepthScene) {
+                initUVDepthScene();
+            }
+
+            uvDepthScene.currentDemo = demoName;
+            const basePath = `RGBDSample/${demoName}/`;
+            const colorPath = basePath + 'Color.png';
+            const depthPath = basePath + 'Depth.png';
+
+            // 加载颜色图像
+            const colorImage = new Image();
+            colorImage.crossOrigin = 'anonymous';
+            colorImage.onload = function() {
+                // 加载深度图像
+                const depthImage = new Image();
+                depthImage.crossOrigin = 'anonymous';
+                depthImage.onload = function() {
+                    // 转换深度图为3D面片
+                    convertDepthToMesh(colorImage, depthImage);
+                };
+                depthImage.src = depthPath;
+            };
+            colorImage.src = colorPath;
+        }
+
+        // 将深度图转换为3D面片
+        function convertDepthToMesh(colorImage, depthImage) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const width = depthImage.width;
+            const height = depthImage.height;
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制深度图像
+            ctx.drawImage(depthImage, 0, 0);
+            const depthData = ctx.getImageData(0, 0, width, height).data;
+
+            const vertices = [];
+            const colors = [];
+            const indices = [];
+
+            // 相机参数（简化版）
+            const fx = width;  // 焦距，假设像素焦距为图像宽度
+            const fy = width;
+            const cx = width / 2;
+            const cy = height / 2;
+            const depthScale = 0.001;  // 深度缩放因子
+
+            // 降采样率（提高性能）
+            const downSample = 8;
+            const step = downSample;
+
+            // 生成顶点
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    const index = (y * width + x) * 4;
+                    
+                    // 从深度图获取深度值（假设深度图是灰度图）
+                    const depthValue = depthData[index];  // 使用红色通道
+                    
+                    // 跳过过远或过近的点
+                    if (depthValue < 10 || depthValue > 245) {
+                        // 添加一个默认点
+                        vertices.push(0, 0, 0);
+                        colors.push(0, 0, 0);
+                    } else {
+                        // 计算3D坐标
+                        const z = depthValue * depthScale;
+                        const x3d = (x - cx) * z / fx;
+                        const y3d = (y - cy) * z / fy;
+
+                        // 使用UV坐标和深度值生成颜色
+                        const u = x / width;  // U坐标 (0-1)
+                        const v = y / height;  // V坐标 (0-1)
+                        const depthNormalized = depthValue / 255;  // 深度值归一化到 (0-1)
+
+                        // rgb = U, V, Depth
+                        const r = u;
+                        const g = v;
+                        const b = depthNormalized;
+
+                        // 添加顶点和颜色
+                        vertices.push(x3d, -y3d, -z);  // 翻转y和z轴以获得正确的方向
+                        colors.push(r, g, b);
+                    }
+                }
+            }
+
+            // 生成索引（三角形）
+            const cols = Math.floor(width / step);
+            const rows = Math.floor(height / step);
+            
+            for (let r = 0; r < rows - 1; r++) {
+                for (let c = 0; c < cols - 1; c++) {
+                    const index = r * cols + c;
+                    
+                    // 第一个三角形
+                    indices.push(index);
+                    indices.push(index + cols);
+                    indices.push(index + cols + 1);
+                    
+                    // 第二个三角形
+                    indices.push(index);
+                    indices.push(index + cols + 1);
+                    indices.push(index + 1);
+                }
+            }
+
+            // 更新顶点、颜色和索引
+            uvDepthScene.vertices = vertices;
+            uvDepthScene.colors = colors;
+            uvDepthScene.indices = indices;
+
+            console.log(`转换完成，生成了 ${vertices.length / 3} 个顶点和 ${indices.length / 3} 个三角形`);
+        }
+    </script>
+</body>
+</html>
